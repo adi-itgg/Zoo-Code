@@ -12,6 +12,71 @@ import type { SingleCompletionHandler, ApiHandlerCreateMessageMetadata } from ".
 import { RouterProvider } from "./router-provider"
 
 /**
+ * OpenAI Chat Completions accepts exactly these three values for the
+ * `reasoning_effort` field. Extended values like "minimal" or "xhigh" are
+ * intentionally dropped rather than mapped — the upstream Go gateway is
+ * expected to forward the field verbatim, so sending an unsupported value
+ * would be a hard error.
+ */
+const OPENCODE_GO_REASONING_EFFORTS = ["low", "medium", "high"] as const
+type OpencodeGoReasoningEffort = (typeof OPENCODE_GO_REASONING_EFFORTS)[number]
+
+/**
+ * Resolves the effective `reasoning_effort` to send with a request.
+ *
+ * Resolution order:
+ *  1. User's explicit setting on `apiConfiguration` (set via Settings dropdown).
+ *  2. Model's catalog default (`info.reasoningEffort`).
+ *  3. Provider-level fallback ("medium").
+ *
+ * Returns `undefined` when:
+ *  - Reasoning is explicitly disabled by the user (`enableReasoningEffort === false`
+ *    or `reasoningEffort === "disable"`).
+ *  - The resolved model does not support reasoning effort
+ *    (`supportsReasoningEffort === false`).
+ *  - The model declares a capability array and the resolved value isn't in it.
+ *  - The resolved value isn't one of the three values accepted by the OpenAI
+ *    Chat Completions API.
+ *
+ * Note: This capability gate is stricter than the other RouterProvider-based
+ * handlers (e.g. openai.ts, requesty.ts), which only filter values downstream
+ * of `shouldUseReasoningEffort`. The opencode-go gateway forwards
+ * `reasoning_effort` verbatim, so we drop the field on the client side rather
+ * than risk the upstream rejecting an unsupported value.
+ */
+const resolveReasoningEffort = (
+	options: ApiHandlerOptions,
+	modelInfo: {
+		reasoningEffort?: string
+		supportsReasoningEffort?: boolean | readonly string[]
+	},
+): OpencodeGoReasoningEffort | undefined => {
+	// User explicitly disabled reasoning → omit.
+	if (options.enableReasoningEffort === false || options.reasoningEffort === "disable") {
+		return undefined
+	}
+
+	// Model declares it doesn't support reasoning → omit even if the user
+	// selected an effort (the gateway will reject the field).
+	if (modelInfo.supportsReasoningEffort === false) {
+		return undefined
+	}
+
+	// Resolve the raw value: user setting → model default → "medium"
+	const raw = (options.reasoningEffort as string | undefined) ?? modelInfo.reasoningEffort ?? "medium"
+
+	// If the model advertises a capability array, only honour values in it.
+	if (Array.isArray(modelInfo.supportsReasoningEffort) && !modelInfo.supportsReasoningEffort.includes(raw)) {
+		return undefined
+	}
+
+	// Finally, drop values the OpenAI Chat Completions API doesn't accept.
+	return (OPENCODE_GO_REASONING_EFFORTS as readonly string[]).includes(raw)
+		? (raw as OpencodeGoReasoningEffort)
+		: undefined
+}
+
+/**
  * API handler for the Opencode "Go" subscription plan.
  *
  * Routes requests through the OpenAI-compatible gateway at
@@ -24,7 +89,8 @@ import { RouterProvider } from "./router-provider"
  * provider (#172).
  *
  * Supports text generation, reasoning content (GLM/DeepSeek), tool calls,
- * and non-streaming prompt completion.
+ * configurable `reasoning_effort` (low/medium/high), and non-streaming prompt
+ * completion.
  */
 export class OpencodeGoHandler extends RouterProvider implements SingleCompletionHandler {
 	/** Creates a new handler bound to the user's Go API key and selected model. */
@@ -56,6 +122,8 @@ export class OpencodeGoHandler extends RouterProvider implements SingleCompletio
 			...convertToOpenAiMessages(messages),
 		]
 
+		const reasoningEffort = resolveReasoningEffort(this.options, info)
+
 		const body: OpenAI.Chat.ChatCompletionCreateParams = {
 			model: modelId,
 			messages: openAiMessages,
@@ -68,6 +136,9 @@ export class OpencodeGoHandler extends RouterProvider implements SingleCompletio
 			tools: this.convertToolsForOpenAI(metadata?.tools),
 			tool_choice: metadata?.tool_choice,
 			parallel_tool_calls: metadata?.parallelToolCalls ?? true,
+			// Conditional spread: omit the field entirely when reasoning is off or
+			// the resolved value isn't supported by the gateway.
+			...(reasoningEffort && { reasoning_effort: reasoningEffort }),
 		}
 
 		const completion = await this.client.chat.completions.create(body)
@@ -130,6 +201,11 @@ export class OpencodeGoHandler extends RouterProvider implements SingleCompletio
 			}
 
 			requestOptions.max_completion_tokens = info.maxTokens
+
+			const reasoningEffort = resolveReasoningEffort(this.options, info)
+			if (reasoningEffort) {
+				requestOptions.reasoning_effort = reasoningEffort
+			}
 
 			const response = await this.client.chat.completions.create(requestOptions)
 			return response.choices[0]?.message.content || ""

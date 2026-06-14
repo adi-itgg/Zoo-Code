@@ -48,7 +48,7 @@ describe("Opencode Go Fetchers", () => {
 			expect(models["deepseek-v4-pro"].contextWindow).toBe(1048576)
 		})
 
-		it("falls back to default context/max tokens when metadata is absent", async () => {
+		it("falls back to default context/max tokens and reasoning defaults when metadata is absent", async () => {
 			mockedAxios.get.mockResolvedValue({ data: { data: [{ id: "kimi-k2.6" }] } })
 
 			const models = await getOpencodeGoModels("k")
@@ -57,6 +57,11 @@ describe("Opencode Go Fetchers", () => {
 				contextWindow: opencodeGoDefaultModelInfo.contextWindow,
 				maxTokens: opencodeGoDefaultModelInfo.maxTokens,
 				supportsPromptCache: false,
+				// Reasoning effort fields fall through to the provider default so
+				// the Settings dropdown still surfaces for models that don't
+				// declare the capability themselves.
+				supportsReasoningEffort: opencodeGoDefaultModelInfo.supportsReasoningEffort,
+				reasoningEffort: opencodeGoDefaultModelInfo.reasoningEffort,
 			})
 		})
 
@@ -91,6 +96,28 @@ describe("Opencode Go Fetchers", () => {
 
 			warnSpy.mockRestore()
 		})
+
+		it("honors reasoning-effort hints returned by the live catalog", async () => {
+			mockedAxios.get.mockResolvedValue({
+				data: {
+					data: [
+						{
+							id: "deepseek-v4-pro",
+							context_length: 1048576,
+							supports_reasoning_effort: ["low", "high"],
+							default_reasoning_effort: "high",
+						},
+					],
+				},
+			})
+
+			const models = await getOpencodeGoModels("k")
+
+			expect(models["deepseek-v4-pro"]).toMatchObject({
+				supportsReasoningEffort: ["low", "high"],
+				reasoningEffort: "high",
+			})
+		})
 	})
 
 	describe("parseOpencodeGoModel", () => {
@@ -99,6 +126,22 @@ describe("Opencode Go Fetchers", () => {
 			expect(info.supportsPromptCache).toBe(false)
 			expect(info.contextWindow).toBe(100000)
 			expect(info.maxTokens).toBe(8000)
+		})
+
+		it("preserves the provider's default reasoning effort when the entry omits it", () => {
+			const info = parseOpencodeGoModel({ id: "x" })
+			expect(info.supportsReasoningEffort).toEqual(opencodeGoDefaultModelInfo.supportsReasoningEffort)
+			expect(info.reasoningEffort).toBe(opencodeGoDefaultModelInfo.reasoningEffort)
+		})
+
+		it("lets API-declared reasoning effort override the provider default", () => {
+			const info = parseOpencodeGoModel({
+				id: "x",
+				supports_reasoning_effort: false,
+				default_reasoning_effort: "low",
+			})
+			expect(info.supportsReasoningEffort).toBe(false)
+			expect(info.reasoningEffort).toBe("low")
 		})
 	})
 })

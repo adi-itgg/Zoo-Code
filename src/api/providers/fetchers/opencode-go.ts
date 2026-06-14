@@ -12,6 +12,11 @@ const OPENCODE_GO_BASE_URL = "https://opencode.ai/zen/go/v1"
 // the units returned by the endpoint aren't documented, and reporting a wrong
 // cost is worse than reporting "unknown" — so cost stays undefined until the
 // pricing shape is confirmed against the live endpoint.
+//
+// Reasoning-effort fields are forward-compatible additions: the live catalog
+// may or may not include them depending on what the gateway decides to expose.
+// When present, they override the per-provider default; when absent, the
+// default from `opencodeGoDefaultModelInfo` is preserved.
 const opencodeGoModelSchema = z.object({
 	id: z.string(),
 	name: z.string().optional(),
@@ -21,6 +26,8 @@ const opencodeGoModelSchema = z.object({
 	max_tokens: z.number().optional(),
 	max_output_tokens: z.number().optional(),
 	supports_images: z.boolean().optional(),
+	supports_reasoning_effort: z.union([z.boolean(), z.array(z.enum(["low", "medium", "high"]))]).optional(),
+	default_reasoning_effort: z.enum(["low", "medium", "high"]).optional(),
 })
 
 export type OpencodeGoModel = z.infer<typeof opencodeGoModelSchema>
@@ -44,6 +51,11 @@ export const parseOpencodeGoModel = (model: OpencodeGoModel): ModelInfo => ({
 	contextWindow: model.context_window ?? model.context_length ?? opencodeGoDefaultModelInfo.contextWindow,
 	supportsImages: model.supports_images ?? false,
 	supportsPromptCache: false,
+	// Reasoning effort: prefer the API's signal, fall back to the provider default
+	// so the Settings UI still surfaces the dropdown for models that omit the
+	// field. DeepSeek V4 family models are expected to opt in to reasoning.
+	supportsReasoningEffort: model.supports_reasoning_effort ?? opencodeGoDefaultModelInfo.supportsReasoningEffort,
+	reasoningEffort: model.default_reasoning_effort ?? opencodeGoDefaultModelInfo.reasoningEffort,
 	description: model.description ?? model.name,
 })
 
@@ -72,7 +84,9 @@ export async function getOpencodeGoModels(apiKey?: string): Promise<Record<strin
 		const data = Array.isArray(rawData) ? rawData : []
 
 		if (!result.success) {
-			console.warn(`Opencode Go models response did not match expected schema; falling back to per-item parsing: ${JSON.stringify(result.error.format())}`)
+			console.warn(
+				`Opencode Go models response did not match expected schema; falling back to per-item parsing: ${JSON.stringify(result.error.format())}`,
+			)
 		}
 
 		for (const rawModel of data) {
