@@ -118,6 +118,28 @@ describe("Opencode Go Fetchers", () => {
 				reasoningEffort: "high",
 			})
 		})
+
+		it("accepts the 'max' effort tier in the live catalog payload", async () => {
+			mockedAxios.get.mockResolvedValue({
+				data: {
+					data: [
+						{
+							id: "deepseek-v4-pro",
+							context_length: 1048576,
+							supports_reasoning_effort: ["low", "medium", "high", "max"],
+							default_reasoning_effort: "max",
+						},
+					],
+				},
+			})
+
+			const models = await getOpencodeGoModels("k")
+
+			expect(models["deepseek-v4-pro"]).toMatchObject({
+				supportsReasoningEffort: ["low", "medium", "high", "max"],
+				reasoningEffort: "max",
+			})
+		})
 	})
 
 	describe("parseOpencodeGoModel", () => {

@@ -26,8 +26,8 @@ const opencodeGoModelSchema = z.object({
 	max_tokens: z.number().optional(),
 	max_output_tokens: z.number().optional(),
 	supports_images: z.boolean().optional(),
-	supports_reasoning_effort: z.union([z.boolean(), z.array(z.enum(["low", "medium", "high"]))]).optional(),
-	default_reasoning_effort: z.enum(["low", "medium", "high"]).optional(),
+	supports_reasoning_effort: z.union([z.boolean(), z.array(z.enum(["low", "medium", "high", "max"]))]).optional(),
+	default_reasoning_effort: z.enum(["low", "medium", "high", "max"]).optional(),
 })
 
 export type OpencodeGoModel = z.infer<typeof opencodeGoModelSchema>

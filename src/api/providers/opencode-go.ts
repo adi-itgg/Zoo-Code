@@ -12,14 +12,26 @@ import type { SingleCompletionHandler, ApiHandlerCreateMessageMetadata } from ".
 import { RouterProvider } from "./router-provider"
 
 /**
- * OpenAI Chat Completions accepts exactly these three values for the
- * `reasoning_effort` field. Extended values like "minimal" or "xhigh" are
- * intentionally dropped rather than mapped — the upstream Go gateway is
- * expected to forward the field verbatim, so sending an unsupported value
- * would be a hard error.
+ * Values the opencode-go gateway accepts on `reasoning_effort`. The OpenAI
+ * Chat Completions standard defines "low / medium / high" — we forward those
+ * verbatim, plus "max" which the gateway (and the underlying DeepSeek
+ * reasoner) accept as a step above "high". Extended values like "minimal",
+ * "xhigh", or "none" are intentionally dropped — the gateway forwards the
+ * field verbatim, so sending an unsupported value would be a hard error.
  */
-const OPENCODE_GO_REASONING_EFFORTS = ["low", "medium", "high"] as const
+const OPENCODE_GO_REASONING_EFFORTS = ["low", "medium", "high", "max"] as const
 type OpencodeGoReasoningEffort = (typeof OPENCODE_GO_REASONING_EFFORTS)[number]
+
+/**
+ * Request body shape accepted by the opencode-go gateway. Identical to
+ * `OpenAI.Chat.ChatCompletionCreateParams`, but `reasoning_effort` is
+ * widened to include "max" — the OpenAI SDK type only declares the
+ * "low | medium | high" triple, so we `Omit` the original field and
+ * re-add the wider one. Cast back at the `.create()` call site.
+ */
+type OpencodeGoChatCompletionCreateParams = Omit<OpenAI.Chat.ChatCompletionCreateParams, "reasoning_effort"> & {
+	reasoning_effort?: "low" | "medium" | "high" | "max"
+}
 
 /**
  * Resolves the effective `reasoning_effort` to send with a request.
@@ -89,8 +101,8 @@ const resolveReasoningEffort = (
  * provider (#172).
  *
  * Supports text generation, reasoning content (GLM/DeepSeek), tool calls,
- * configurable `reasoning_effort` (low/medium/high), and non-streaming prompt
- * completion.
+ * configurable `reasoning_effort` (low/medium/high/max), and non-streaming
+ * prompt completion.
  */
 export class OpencodeGoHandler extends RouterProvider implements SingleCompletionHandler {
 	/** Creates a new handler bound to the user's Go API key and selected model. */
@@ -124,7 +136,7 @@ export class OpencodeGoHandler extends RouterProvider implements SingleCompletio
 
 		const reasoningEffort = resolveReasoningEffort(this.options, info)
 
-		const body: OpenAI.Chat.ChatCompletionCreateParams = {
+		const body: OpencodeGoChatCompletionCreateParams = {
 			model: modelId,
 			messages: openAiMessages,
 			temperature: this.supportsTemperature(modelId)
@@ -141,7 +153,9 @@ export class OpencodeGoHandler extends RouterProvider implements SingleCompletio
 			...(reasoningEffort && { reasoning_effort: reasoningEffort }),
 		}
 
-		const completion = await this.client.chat.completions.create(body)
+		const completion = await this.client.chat.completions.create(
+			body as OpenAI.Chat.ChatCompletionCreateParamsStreaming,
+		)
 
 		for await (const chunk of completion) {
 			const delta = chunk.choices[0]?.delta
@@ -190,7 +204,7 @@ export class OpencodeGoHandler extends RouterProvider implements SingleCompletio
 		const { id: modelId, info } = await this.fetchModel()
 
 		try {
-			const requestOptions: OpenAI.Chat.ChatCompletionCreateParams = {
+			const requestOptions: OpencodeGoChatCompletionCreateParams = {
 				model: modelId,
 				messages: [{ role: "user", content: prompt }],
 				stream: false,
@@ -207,7 +221,9 @@ export class OpencodeGoHandler extends RouterProvider implements SingleCompletio
 				requestOptions.reasoning_effort = reasoningEffort
 			}
 
-			const response = await this.client.chat.completions.create(requestOptions)
+			const response = await this.client.chat.completions.create(
+				requestOptions as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming,
+			)
 			return response.choices[0]?.message.content || ""
 		} catch (error) {
 			if (error instanceof Error) {

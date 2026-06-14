@@ -25,7 +25,7 @@ vitest.mock("../fetchers/modelCache", () => ({
 				contextWindow: 1048576,
 				supportsImages: false,
 				supportsPromptCache: false,
-				supportsReasoningEffort: ["low", "medium", "high"],
+				supportsReasoningEffort: ["low", "medium", "high", "max"],
 				reasoningEffort: "medium",
 				description: "DeepSeek V4 Pro (mock)",
 			},
@@ -97,7 +97,7 @@ describe("OpencodeGoHandler", () => {
 			expect(result.info.maxTokens).toBe(32768)
 			expect(result.info.contextWindow).toBe(1048576)
 			expect(result.info.supportsPromptCache).toBe(false)
-			expect(result.info.supportsReasoningEffort).toEqual(["low", "medium", "high"])
+			expect(result.info.supportsReasoningEffort).toEqual(["low", "medium", "high", "max"])
 			expect(result.info.reasoningEffort).toBe("medium")
 		})
 
@@ -215,6 +215,21 @@ describe("OpencodeGoHandler", () => {
 			expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ reasoning_effort: "high" }))
 		})
 
+		it("forwards the user-selected 'max' reasoning effort to the gateway", async () => {
+			// The OpenAI standard stops at "high" but the opencode-go gateway (and
+			// the underlying DeepSeek reasoner) accept "max" as a step above.
+			// Cast: ApiHandlerOptions.reasoningEffort uses the global setting
+			// enum (which only declares "low/medium/high/xhigh") — "max" is an
+			// opencode-go-only value that gets forwarded verbatim.
+			const handler = new OpencodeGoHandler({ ...mockOptions, reasoningEffort: "max" as any })
+			const messages: Anthropic.Messages.MessageParam[] = [{ role: "user", content: "Hi" }]
+			for await (const _chunk of handler.createMessage("sys", messages)) {
+				void _chunk
+			}
+
+			expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ reasoning_effort: "max" }))
+		})
+
 		it("omits reasoning_effort when the user has explicitly disabled it", async () => {
 			const handler = new OpencodeGoHandler({
 				...mockOptions,
@@ -319,6 +334,13 @@ describe("OpencodeGoHandler", () => {
 			const handler = new OpencodeGoHandler({ ...mockOptions, reasoningEffort: "low" })
 			await handler.completePrompt("ping")
 			expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ reasoning_effort: "low", stream: false }))
+		})
+
+		it("forwards the 'max' reasoning effort on the non-streaming path", async () => {
+			mockCreate.mockResolvedValue({ choices: [{ message: { content: "ok" } }] })
+			const handler = new OpencodeGoHandler({ ...mockOptions, reasoningEffort: "max" as any })
+			await handler.completePrompt("ping")
+			expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ reasoning_effort: "max", stream: false }))
 		})
 
 		it("omits reasoning_effort when reasoning is disabled", async () => {

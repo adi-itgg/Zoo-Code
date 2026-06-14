@@ -13,11 +13,12 @@ export const opencodeGoDefaultModelInfo: ModelInfo = {
 	contextWindow: 1_048_576,
 	supportsImages: false,
 	supportsPromptCache: false,
-	// DeepSeek V4 Pro exposes OpenAI-style `reasoning_effort` (low/medium/high).
-	// The dropdown is surfaced in Settings when this flag is set on the resolved
-	// model info, so the default fallback must advertise the capability even
-	// before the live /v1/models catalog resolves.
-	supportsReasoningEffort: ["low", "medium", "high"],
+	// DeepSeek V4 Pro exposes OpenAI-style `reasoning_effort` (low/medium/high),
+	// plus the DeepSeek-flavoured "max" tier (no thinking-budget equivalent).
+	// The dropdown is surfaced in Settings when this flag is set on the
+	// resolved model info, so the default fallback must advertise the
+	// capability even before the live /v1/models catalog resolves.
+	supportsReasoningEffort: ["low", "medium", "high", "max"],
 	// Model-level default effort. The user-selected value (apiConfiguration
 	// .reasoningEffort) takes precedence at request time; this is the fallback
 	// when the user hasn't picked one.
@@ -26,7 +27,7 @@ export const opencodeGoDefaultModelInfo: ModelInfo = {
 	// (implying the service is free), so we leave it unknown — consistent with the dynamically
 	// fetched models, which also leave price fields absent. See PR #319 review.
 	description:
-		"DeepSeek V4 Pro (Opencode Go plan). 1M context, configurable reasoning effort (low/medium/high). " +
+		"DeepSeek V4 Pro (Opencode Go plan). 1M context, configurable reasoning effort (low/medium/high/max). " +
 		"Available models and metadata are resolved dynamically from /v1/models.",
 }
 
