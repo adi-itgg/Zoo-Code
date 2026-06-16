@@ -10,6 +10,7 @@ import { convertToOpenAiMessages } from "../transform/openai-format"
 
 import type { SingleCompletionHandler, ApiHandlerCreateMessageMetadata } from "../index"
 import { RouterProvider } from "./router-provider"
+import { extractReasoningFromDelta } from "./utils/extract-reasoning"
 
 /**
  * Values the opencode-go gateway accepts on `reasoning_effort`. The OpenAI
@@ -165,8 +166,9 @@ export class OpencodeGoHandler extends RouterProvider implements SingleCompletio
 			}
 
 			// Several Go-plan models (GLM, DeepSeek) stream reasoning via this field.
-			if (delta && "reasoning_content" in delta && delta.reasoning_content) {
-				yield { type: "reasoning", text: (delta.reasoning_content as string | undefined) || "" }
+			const reasoningText = extractReasoningFromDelta(delta)
+			if (reasoningText) {
+				yield { type: "reasoning", text: reasoningText }
 			}
 
 			// Emit raw tool call chunks - NativeToolCallParser handles state management.

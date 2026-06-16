@@ -32,7 +32,16 @@ export type ReasoningEffortExtended = z.infer<typeof reasoningEffortExtendedSche
 /**
  * Reasoning Effort user setting (includes "disable")
  */
-export const reasoningEffortSettingValues = ["disable", "none", "minimal", "low", "medium", "high", "xhigh"] as const
+export const reasoningEffortSettingValues = [
+	"disable",
+	"none",
+	"minimal",
+	"low",
+	"medium",
+	"high",
+	"xhigh",
+	"max",
+] as const
 export const reasoningEffortSettingSchema = z.enum(reasoningEffortSettingValues)
 
 /**
