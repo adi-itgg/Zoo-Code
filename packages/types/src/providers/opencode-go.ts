@@ -31,4 +31,20 @@ export const opencodeGoDefaultModelInfo: ModelInfo = {
 		"Available models and metadata are resolved dynamically from /v1/models.",
 }
 
+export const minimaxM3ModelId = "minimax-m3"
+
+export const minimaxM3ModelInfo: ModelInfo = {
+	maxTokens: 32_768,
+	contextWindow: 1_048_576,
+	supportsImages: false,
+	supportsPromptCache: false,
+	// MiniMax M3 exposes OpenAI-style `reasoning_effort` (low/medium/high),
+	// plus the DeepSeek-flavoured "max" tier via the Opencode Go gateway.
+	supportsReasoningEffort: ["low", "medium", "high", "max"],
+	reasoningEffort: "medium",
+	description:
+		"MiniMax M3 (Opencode Go plan). 1M context, configurable reasoning effort (low/medium/high/max). " +
+		"Available models and metadata are resolved dynamically from /v1/models.",
+}
+
 export const OPENCODE_GO_DEFAULT_TEMPERATURE = 0

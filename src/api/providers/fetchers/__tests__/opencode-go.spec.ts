@@ -2,7 +2,7 @@
 
 import axios from "axios"
 
-import { opencodeGoDefaultModelInfo } from "@roo-code/types"
+import { opencodeGoDefaultModelInfo, minimaxM3ModelInfo } from "@roo-code/types"
 
 import { getOpencodeGoModels, parseOpencodeGoModel } from "../opencode-go"
 
@@ -38,7 +38,7 @@ describe("Opencode Go Fetchers", () => {
 				timeout: 10_000,
 			})
 
-			expect(Object.keys(models).sort()).toEqual(["deepseek-v4-pro", "glm-5.1"])
+			expect(Object.keys(models).sort()).toEqual(["deepseek-v4-pro", "glm-5.1", "minimax-m3"])
 			expect(models["glm-5.1"]).toMatchObject({
 				contextWindow: 202752,
 				maxTokens: 32768,
@@ -65,14 +65,53 @@ describe("Opencode Go Fetchers", () => {
 			})
 		})
 
+		it("pre-seeds minimax-m3 as a known model before the API call", async () => {
+			mockedAxios.get.mockResolvedValue({ data: { data: [] } })
+
+			const models = await getOpencodeGoModels("k")
+
+			expect(Object.keys(models)).toEqual(["minimax-m3"])
+			expect(models["minimax-m3"]).toMatchObject({
+				contextWindow: 1_048_576,
+				maxTokens: 32_768,
+				supportsReasoningEffort: ["low", "medium", "high", "max"],
+				reasoningEffort: "medium",
+			})
+		})
+
+		it("lets the API override the pre-seeded minimax-m3 model", async () => {
+			mockedAxios.get.mockResolvedValue({
+				data: {
+					data: [
+						{
+							id: "minimax-m3",
+							context_window: 204800,
+							max_output_tokens: 16384,
+							supports_reasoning_effort: ["low", "medium", "high"],
+							default_reasoning_effort: "high",
+						},
+					],
+				},
+			})
+
+			const models = await getOpencodeGoModels("k")
+
+			expect(models["minimax-m3"]).toMatchObject({
+				contextWindow: 204800,
+				maxTokens: 16384,
+				supportsReasoningEffort: ["low", "medium", "high"],
+				reasoningEffort: "high",
+			})
+		})
+
 		it("returns an empty map on network error", async () => {
 			mockedAxios.get.mockRejectedValue(new Error("network"))
-			expect(await getOpencodeGoModels("k")).toEqual({})
+			expect(Object.keys(await getOpencodeGoModels("k"))).toEqual(["minimax-m3"])
 		})
 
 		it("falls back to an empty array when response.data.data is not an array", async () => {
 			mockedAxios.get.mockResolvedValue({ data: { data: null } })
-			expect(await getOpencodeGoModels("k")).toEqual({})
+			expect(Object.keys(await getOpencodeGoModels("k"))).toEqual(["minimax-m3"])
 		})
 
 		it("skips entries that fail safeParse with a console.warn", async () => {
@@ -88,7 +127,7 @@ describe("Opencode Go Fetchers", () => {
 
 			const models = await getOpencodeGoModels("k")
 
-			expect(Object.keys(models)).toEqual(["valid-model"])
+			expect(Object.keys(models).sort()).toEqual(["minimax-m3", "valid-model"])
 			// Two warns: one for the outer schema mismatch, one for the invalid item
 			expect(warnSpy).toHaveBeenCalledTimes(2)
 			expect(warnSpy.mock.calls[0][0]).toContain("did not match expected schema")

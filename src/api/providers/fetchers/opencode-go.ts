@@ -2,7 +2,7 @@ import axios from "axios"
 import { z } from "zod"
 
 import type { ModelInfo } from "@roo-code/types"
-import { opencodeGoDefaultModelInfo } from "@roo-code/types"
+import { opencodeGoDefaultModelInfo, minimaxM3ModelId, minimaxM3ModelInfo } from "@roo-code/types"
 
 const OPENCODE_GO_BASE_URL = "https://opencode.ai/zen/go/v1"
 
@@ -71,7 +71,11 @@ export const parseOpencodeGoModel = (model: OpencodeGoModel): ModelInfo => ({
  * @returns A record mapping model IDs to their normalised {@link ModelInfo}.
  */
 export async function getOpencodeGoModels(apiKey?: string): Promise<Record<string, ModelInfo>> {
-	const models: Record<string, ModelInfo> = {}
+	// Pre-seed known models so they're always available in the picker
+	// regardless of what the live /v1/models catalog returns.
+	const models: Record<string, ModelInfo> = {
+		[minimaxM3ModelId]: minimaxM3ModelInfo,
+	}
 
 	try {
 		const response = await axios.get(`${OPENCODE_GO_BASE_URL}/models`, {
