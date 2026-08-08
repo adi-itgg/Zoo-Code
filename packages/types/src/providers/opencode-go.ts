@@ -7,6 +7,7 @@ export type OpencodeGoProtocol = z.infer<typeof opencodeGoProtocolSchema>
 
 export const opencodeGoCustomModelSchema = modelInfoSchema.partial().extend({
 	protocol: opencodeGoProtocolSchema.optional(),
+	customReasoningEffort: z.string().trim().min(1).optional(),
 })
 export type OpencodeGoCustomModel = z.infer<typeof opencodeGoCustomModelSchema>
 

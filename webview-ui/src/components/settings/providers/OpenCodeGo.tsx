@@ -203,6 +203,32 @@ export const OpenCodeGo = ({
 								/>
 								Supports reasoning
 							</label>
+							<VSCodeDropdown
+								value={custom?.reasoningEffort ?? "disable"}
+								onChange={(event) =>
+									updateCustom({
+										reasoningEffort: (event.target as HTMLSelectElement).value,
+									})
+								}>
+								<VSCodeOption value="disable">Reasoning effort: disabled</VSCodeOption>
+								<VSCodeOption value="none">None</VSCodeOption>
+								<VSCodeOption value="minimal">Minimal</VSCodeOption>
+								<VSCodeOption value="low">Low</VSCodeOption>
+								<VSCodeOption value="medium">Medium</VSCodeOption>
+								<VSCodeOption value="high">High</VSCodeOption>
+								<VSCodeOption value="xhigh">Extra high</VSCodeOption>
+								<VSCodeOption value="max">Max</VSCodeOption>
+							</VSCodeDropdown>
+							<VSCodeTextField
+								value={custom?.customReasoningEffort ?? ""}
+								type="text"
+								placeholder="Custom reasoning effort (optional)"
+								onInput={(event) =>
+									updateCustom({
+										customReasoningEffort: (event.target as HTMLInputElement).value || undefined,
+									})
+								}
+							/>
 						</div>
 					)
 				})()}
