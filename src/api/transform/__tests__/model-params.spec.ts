@@ -32,6 +32,31 @@ describe("getModelParams", () => {
 		defaultTemperature: 0,
 	}
 
+	describe("OpenCode Go custom reasoning effort", () => {
+		it("uses the manual effort string for OpenAI-compatible models", () => {
+			const result = getModelParams({
+				...openaiParams,
+				modelId: "custom-model",
+				settings: {
+					enableReasoningEffort: true,
+					opencodeGoCustomModels: {
+						"custom-model": {
+							contextWindow: 16_000,
+							supportsPromptCache: false,
+							supportsReasoningEffort: true,
+							customReasoningEffort: "deep-thinking",
+						},
+					},
+				},
+				model: baseModel,
+				defaultTemperature: 0,
+			})
+
+			expect(result.reasoningEffort).toBe("deep-thinking")
+			expect(result.reasoning).toEqual({ reasoning_effort: "deep-thinking" })
+		})
+	})
+
 	describe("Basic functionality", () => {
 		it("should return default values when no custom values are provided", () => {
 			const result = getModelParams({

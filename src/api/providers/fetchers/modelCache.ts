@@ -248,7 +248,7 @@ async function fetchModelsFromProvider(options: GetModelsOptions): Promise<Model
 			models = await getVercelAiGatewayModels()
 			break
 		case providerIdentifiers.opencodeGo:
-			models = await getOpencodeGoModels(options.apiKey)
+			models = await getOpencodeGoModels(options.apiKey, options.customModels)
 			break
 		case providerIdentifiers.kenari:
 			models = await getKenariModels(options.apiKey)

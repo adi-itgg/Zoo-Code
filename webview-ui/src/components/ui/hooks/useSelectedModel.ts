@@ -398,8 +398,13 @@ function getSelectedModel({
 				defaultModelId,
 			)
 			// Fall back to the provider's default ModelInfo so capability-driven UI
-			// keeps working when the /models list is empty or unavailable.
-			const info = routerModels["opencode-go"]?.[id] ?? opencodeGoDefaultModelInfo
+			// keeps working when the /models list is empty or unavailable. Custom
+			// per-model metadata must be merged here because the model list cache is
+			// fetched independently from the settings object.
+			const info = {
+				...(routerModels["opencode-go"]?.[id] ?? opencodeGoDefaultModelInfo),
+				...(apiConfiguration.opencodeGoCustomModels?.[id] ?? {}),
+			}
 			return { id, info }
 		}
 		case providerIdentifiers.kenari: {

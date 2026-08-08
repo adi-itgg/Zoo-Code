@@ -187,7 +187,7 @@ const dynamicProviderExtras = {
 	poe: {} as { apiKey?: string; baseUrl?: string },
 	deepseek: {} as { apiKey?: string; baseUrl?: string },
 	moonshot: {} as { apiKey?: string; baseUrl?: string },
-	"opencode-go": {} as { apiKey?: string },
+	"opencode-go": {} as { apiKey?: string; customModels?: ProviderSettings["opencodeGoCustomModels"] },
 	kenari: {} as { apiKey?: string },
 	"kimi-code": {} as { apiKey?: string },
 } as const satisfies Record<RouterName, object>

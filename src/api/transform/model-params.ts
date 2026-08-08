@@ -86,6 +86,11 @@ export function getModelParams({
 		reasoningEffort: customReasoningEffort,
 		verbosity: customVerbosity,
 	} = settings
+	const customOpencodeReasoningEffort =
+		format === "openai" ? settings.opencodeGoCustomModels?.[modelId]?.customReasoningEffort : undefined
+	const effectiveModel = customOpencodeReasoningEffort
+		? ({ ...model, reasoningEffort: customOpencodeReasoningEffort, supportsReasoningEffort: true } as ModelInfo)
+		: model
 
 	// Use the centralized logic for computing maxTokens
 	const maxTokens = getModelMaxOutputTokens({
@@ -100,7 +105,7 @@ export function getModelParams({
 	let reasoningEffort: ModelParams["reasoningEffort"] = undefined
 	const verbosity: VerbosityLevel | undefined = customVerbosity
 
-	if (shouldUseReasoningBudget({ model, settings })) {
+	if (shouldUseReasoningBudget({ model: effectiveModel, settings })) {
 		// Check if this is a Gemini 2.5 Pro model
 		const isGemini25Pro = modelId.includes("gemini-2.5-pro")
 
@@ -128,14 +133,14 @@ export function getModelParams({
 		// Let's assume that "Hybrid" reasoning models require a temperature of
 		// 1.0 since Anthropic does.
 		temperature = 1.0
-	} else if (shouldUseReasoningEffort({ model, settings })) {
+	} else if (shouldUseReasoningEffort({ model: effectiveModel, settings })) {
 		// "Traditional" reasoning models use the `reasoningEffort` parameter.
 		// Only fallback to model default if user hasn't explicitly set a value.
 		// If customReasoningEffort is "disable", don't fallback to model default.
 		const effort =
 			customReasoningEffort !== undefined
 				? customReasoningEffort
-				: (model.reasoningEffort as ReasoningEffortExtended | "disable" | undefined)
+				: (effectiveModel.reasoningEffort as ReasoningEffortExtended | "disable" | undefined)
 		// Capability and settings checks are handled by shouldUseReasoningEffort.
 		// Here we simply propagate the resolved effort into the params, while
 		// still treating "disable" as an omission.
@@ -166,7 +171,7 @@ export function getModelParams({
 		return {
 			format,
 			...params,
-			reasoning: getOpenAiReasoning({ model, reasoningBudget, reasoningEffort, settings }),
+			reasoning: getOpenAiReasoning({ model: effectiveModel, reasoningBudget, reasoningEffort, settings }),
 			// Whether tools are included is determined by whether the caller provided tool definitions.
 		}
 	} else if (format === "gemini") {

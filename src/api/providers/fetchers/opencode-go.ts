@@ -1,7 +1,7 @@
 import axios from "axios"
 import { z } from "zod"
 
-import type { ModelInfo } from "@roo-code/types"
+import type { ModelInfo, OpencodeGoCustomModel } from "@roo-code/types"
 import { opencodeGoDefaultModelInfo, getOpencodeGoModelInfo } from "@roo-code/types"
 
 const OPENCODE_GO_BASE_URL = "https://opencode.ai/zen/go/v1"
@@ -54,7 +54,7 @@ const opencodeGoModelsResponseSchema = z.object({
  * @param model - Validated model entry from the `/models` response.
  * @returns Normalised model metadata suitable for the model picker.
  */
-export const parseOpencodeGoModel = (model: OpencodeGoModel): ModelInfo => {
+export const parseOpencodeGoModel = (model: OpencodeGoModel, custom?: OpencodeGoCustomModel): ModelInfo => {
 	const native = getOpencodeGoModelInfo(model.id)
 
 	// Live endpoint values take precedence over the registry for volatile fields.
@@ -69,15 +69,18 @@ export const parseOpencodeGoModel = (model: OpencodeGoModel): ModelInfo => {
 			...(liveMaxTokens !== undefined && { maxTokens: liveMaxTokens }),
 			...(liveSupportsImages !== undefined && { supportsImages: liveSupportsImages }),
 			description: model.description ?? model.name ?? native.description,
+			...custom,
 		}
 	}
 
 	return {
+		...opencodeGoDefaultModelInfo,
 		maxTokens: liveMaxTokens ?? opencodeGoDefaultModelInfo.maxTokens,
 		contextWindow: liveContextWindow ?? opencodeGoDefaultModelInfo.contextWindow,
 		supportsImages: liveSupportsImages ?? false,
 		supportsPromptCache: false,
 		description: model.description ?? model.name,
+		...custom,
 	}
 }
 
@@ -92,7 +95,10 @@ export const parseOpencodeGoModel = (model: OpencodeGoModel): ModelInfo => {
  * @param apiKey - Optional Bearer token for authenticated requests.
  * @returns A record mapping model IDs to their normalised {@link ModelInfo}.
  */
-export async function getOpencodeGoModels(apiKey?: string): Promise<Record<string, ModelInfo>> {
+export async function getOpencodeGoModels(
+	apiKey?: string,
+	customModels?: Record<string, OpencodeGoCustomModel>,
+): Promise<Record<string, ModelInfo>> {
 	const models: Record<string, ModelInfo> = {}
 
 	try {
@@ -117,7 +123,7 @@ export async function getOpencodeGoModels(apiKey?: string): Promise<Record<strin
 				console.warn(`Skipping invalid Opencode Go model entry: ${JSON.stringify(rawModel)}`)
 				continue
 			}
-			models[parsed.data.id] = parseOpencodeGoModel(parsed.data)
+			models[parsed.data.id] = parseOpencodeGoModel(parsed.data, customModels?.[parsed.data.id])
 		}
 	} catch (error) {
 		console.error(`Error fetching Opencode Go models: ${error instanceof Error ? error.message : String(error)}`)
