@@ -52,6 +52,7 @@ function prepareAssistantMessage(
 	const apiProtocol = getApiProtocol(
 		apiProvider && !isRetiredProvider(apiProvider) ? apiProvider : undefined,
 		modelId,
+		apiConfiguration.opencodeGoCustomModels,
 	)
 	const isAnthropicProtocol = apiProtocol === "anthropic"
 

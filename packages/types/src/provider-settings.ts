@@ -35,6 +35,7 @@ import {
 	minimaxModels,
 	mimoModels,
 	isOpencodeGoAnthropicFormatModel,
+	opencodeGoCustomModelSchema,
 	ANTHROPIC_API_PROTOCOL,
 	OPENAI_API_PROTOCOL,
 } from "./providers/index.js"
@@ -406,6 +407,7 @@ const vercelAiGatewaySchema = baseProviderSettingsSchema.extend({
 const opencodeGoSchema = baseProviderSettingsSchema.extend({
 	opencodeGoApiKey: z.string().optional(),
 	opencodeGoModelId: z.string().optional(),
+	opencodeGoCustomModels: z.record(z.string(), opencodeGoCustomModelSchema).optional(),
 })
 
 const kenariSchema = baseProviderSettingsSchema.extend({
@@ -605,7 +607,11 @@ const ANTHROPIC_MODEL_GATEWAY_PROVIDERS: ProviderName[] = [
 const ANTHROPIC_MODEL_ID_PREFIX = "anthropic/"
 const CLAUDE_MODEL_ID_FRAGMENT = "claude"
 
-export const getApiProtocol = (provider: ProviderName | undefined, modelId?: string): "anthropic" | "openai" => {
+export const getApiProtocol = (
+	provider: ProviderName | undefined,
+	modelId?: string,
+	customModels?: Record<string, { protocol?: "anthropic" | "openai" }>,
+): "anthropic" | "openai" => {
 	if (provider && ANTHROPIC_STYLE_PROVIDERS.includes(provider)) {
 		return ANTHROPIC_API_PROTOCOL
 	}
@@ -636,6 +642,13 @@ export const getApiProtocol = (provider: ProviderName | undefined, modelId?: str
 	// models must use the anthropic protocol so token/cost aggregation adds the
 	// cache tokens back into the input total — otherwise the cached prefix is
 	// dropped from `contextTokens`, undercounting context-window usage.
+	if (provider === providerIdentifiers.opencodeGo && modelId) {
+		const customProtocol = customModels?.[modelId]?.protocol
+		if (customProtocol) {
+			return customProtocol
+		}
+	}
+
 	if (
 		provider &&
 		provider === providerIdentifiers.opencodeGo &&

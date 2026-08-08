@@ -2553,6 +2553,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			const apiProtocol = getApiProtocol(
 				apiProvider && !isRetiredProvider(apiProvider) ? apiProvider : undefined,
 				modelId,
+				this.apiConfiguration.opencodeGoCustomModels,
 			)
 
 			// Respect user-configured provider rate limiting BEFORE we emit api_req_started.
@@ -2679,6 +2680,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					const apiProtocol = getApiProtocol(
 						apiProvider && !isRetiredProvider(apiProvider) ? apiProvider : undefined,
 						modelId,
+						this.apiConfiguration.opencodeGoCustomModels,
 					)
 
 					const costResult =
@@ -3123,6 +3125,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 								const apiProtocol = getApiProtocol(
 									apiProvider && !isRetiredProvider(apiProvider) ? apiProvider : undefined,
 									modelId,
+									this.apiConfiguration.opencodeGoCustomModels,
 								)
 
 								// Use the appropriate cost function based on the API protocol

@@ -7,7 +7,7 @@ import {
 	opencodeGoDefaultModelId,
 	opencodeGoDefaultModelInfo,
 	OPENCODE_GO_DEFAULT_TEMPERATURE,
-	isOpencodeGoAnthropicFormatModel,
+	getOpencodeGoProtocol,
 } from "@roo-code/types"
 
 import { ApiHandlerOptions } from "../../shared/api"
@@ -113,8 +113,10 @@ export class OpencodeGoHandler extends RouterProvider implements SingleCompletio
 	 * parameter computation — mirroring the original `fetchModel()` flow.
 	 */
 	private async resolveModel() {
-		const { id, info } = await this.fetchModel()
-		const isAnthropic = isOpencodeGoAnthropicFormatModel(id)
+		const { id, info: fetchedInfo } = await this.fetchModel()
+		const custom = this.options.opencodeGoCustomModels?.[id]
+		const info = { ...fetchedInfo, ...custom }
+		const isAnthropic = getOpencodeGoProtocol(id, custom) === "anthropic"
 		// getModelParams is overloaded on a literal `format`, so branch the call
 		// rather than passing a union — this keeps the returned params typed as a
 		// single concrete shape per branch.

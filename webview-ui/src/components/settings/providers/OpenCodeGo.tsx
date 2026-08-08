@@ -1,5 +1,5 @@
 import { useCallback, useState, useEffect, useRef } from "react"
-import { VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
+import { VSCodeTextField, VSCodeDropdown, VSCodeOption } from "@vscode/webview-ui-toolkit/react"
 
 import {
 	type ProviderSettings,
@@ -144,6 +144,68 @@ export const OpenCodeGo = ({
 				errorMessage={modelValidationError}
 				simplifySettings={simplifySettings}
 			/>
+			{apiConfiguration.opencodeGoModelId &&
+				(() => {
+					const modelId = apiConfiguration.opencodeGoModelId
+					const custom = apiConfiguration.opencodeGoCustomModels?.[modelId]
+					const updateCustom = (patch: Record<string, unknown>) =>
+						setApiConfigurationField("opencodeGoCustomModels", {
+							...apiConfiguration.opencodeGoCustomModels,
+							[modelId]: { ...custom, ...patch },
+						})
+
+					return (
+						<div className="mt-3 border border-vscode-input-border p-2 space-y-2">
+							<div className="font-medium">Custom model metadata</div>
+							<VSCodeDropdown
+								value={custom?.protocol ?? "openai"}
+								onChange={(event) =>
+									updateCustom({
+										protocol: (event.target as HTMLSelectElement).value as "openai" | "anthropic",
+									})
+								}>
+								<VSCodeOption value="openai">OpenAI-compatible</VSCodeOption>
+								<VSCodeOption value="anthropic">Anthropic Messages</VSCodeOption>
+							</VSCodeDropdown>
+							<VSCodeTextField
+								value={custom?.contextWindow?.toString() ?? ""}
+								type="text"
+								placeholder="Context window"
+								onInput={(event) =>
+									updateCustom({ contextWindow: Number((event.target as HTMLInputElement).value) })
+								}
+							/>
+							<VSCodeTextField
+								value={custom?.maxTokens?.toString() ?? ""}
+								type="text"
+								placeholder="Max output tokens"
+								onInput={(event) =>
+									updateCustom({ maxTokens: Number((event.target as HTMLInputElement).value) })
+								}
+							/>
+							<label className="flex items-center gap-2">
+								<input
+									type="checkbox"
+									checked={custom?.supportsImages ?? false}
+									onChange={(event) => updateCustom({ supportsImages: event.target.checked })}
+								/>
+								Supports vision
+							</label>
+							<label className="flex items-center gap-2">
+								<input
+									type="checkbox"
+									checked={custom?.supportsReasoningEffort === true}
+									onChange={(event) =>
+										updateCustom({
+											supportsReasoningEffort: event.target.checked ? true : undefined,
+										})
+									}
+								/>
+								Supports reasoning
+							</label>
+						</div>
+					)
+				})()}
 		</>
 	)
 }

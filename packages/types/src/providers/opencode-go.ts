@@ -1,4 +1,14 @@
-import type { ModelInfo } from "../model.js"
+import { z } from "zod"
+
+import { modelInfoSchema, type ModelInfo } from "../model.js"
+
+export const opencodeGoProtocolSchema = z.enum(["openai", "anthropic"])
+export type OpencodeGoProtocol = z.infer<typeof opencodeGoProtocolSchema>
+
+export const opencodeGoCustomModelSchema = modelInfoSchema.partial().extend({
+	protocol: opencodeGoProtocolSchema.optional(),
+})
+export type OpencodeGoCustomModel = z.infer<typeof opencodeGoCustomModelSchema>
 
 // Opencode "Go" plan — OpenAI-compatible gateway.
 // https://opencode.ai/docs/go/ · base URL: https://opencode.ai/zen/go/v1
@@ -366,6 +376,10 @@ export const OPENCODE_GO_ANTHROPIC_FORMAT_MODELS = new Set<string>([
  */
 export function isOpencodeGoAnthropicFormatModel(modelId: string): boolean {
 	return OPENCODE_GO_ANTHROPIC_FORMAT_MODELS.has(modelId)
+}
+
+export function getOpencodeGoProtocol(modelId: string, customModel?: OpencodeGoCustomModel): OpencodeGoProtocol {
+	return customModel?.protocol ?? (isOpencodeGoAnthropicFormatModel(modelId) ? "anthropic" : "openai")
 }
 
 /**
